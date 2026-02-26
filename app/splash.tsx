@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { theme } from "../constants/theme";
 
-export default function Index() {
+export default function SplashScreen() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
+    // Fade in and scale animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -24,6 +25,7 @@ export default function Index() {
       }),
     ]).start();
 
+    // Progress simulation
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
@@ -34,6 +36,7 @@ export default function Index() {
       });
     }, 100);
 
+    // Navigate to home after 3 seconds
     const timer = setTimeout(() => {
       router.replace("/home");
     }, 3000);
