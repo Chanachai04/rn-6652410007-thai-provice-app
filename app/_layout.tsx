@@ -1,18 +1,26 @@
+import { theme } from "@/constants/theme";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { theme } from "../constants/theme";
 
 export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: theme.colors.background },
-          animation: "slide_from_right",
-        }}
-      />
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="home" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="detail"
+          options={{
+            title: "รายละเอียด",
+            headerBackButtonDisplayMode: "minimal",
+            headerStyle: {
+              backgroundColor: theme.colors.primary,
+            },
+            headerTintColor: "#fff",
+          }}
+        />
+      </Stack>
     </>
   );
 }

@@ -2,19 +2,17 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Dimensions,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import MapView, { Marker } from "react-native-maps";
 import { theme } from "../constants/theme";
 import { ProvinceData, supabase } from "../lib/supabase";
-
-const { width } = Dimensions.get("window");
 
 export default function DetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -31,7 +29,7 @@ export default function DetailScreen() {
   const fetchData = async (itemId: string) => {
     try {
       const { data: result, error } = await supabase
-        .from("provinces")
+        .from("suratthani")
         .select("*")
         .eq("id", itemId)
         .single();
@@ -44,14 +42,22 @@ export default function DetailScreen() {
       setLoading(false);
     }
   };
-
-  const openGoogleMaps = () => {
+  const handleOpenMapApp = () => {
     if (data?.latitude && data?.longitude) {
-      const url = `https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}`;
-      Linking.openURL(url);
+      // สำหรับเปิด google map
+      const googleMap = `https://maps.google.com/?q=${data.latitude},${data.longitude}`;
+      // สำหรับเปิด apple map
+      const appleMap = `https://maps.apple.com/?q=${data.latitude},${data.longitude}`;
+      // ตรวจสอบการเปิดแอป google map หรือ apple map โดยยึด google map เป็นหลัก
+      Linking.canOpenURL(googleMap).then((supported) => {
+        if (supported) {
+          Linking.openURL(googleMap);
+        } else {
+          Linking.openURL(appleMap);
+        }
+      });
     }
   };
-
   const makePhoneCall = () => {
     if (data?.phone) {
       const phoneNumber = `tel:${data.phone}`;
@@ -72,7 +78,7 @@ export default function DetailScreen() {
       <View style={styles.loadingContainer}>
         <Text style={styles.errorText}>ไม่พบข้อมูล</Text>
         <TouchableOpacity
-          style={styles.backButton}
+          style={styles.errorBackButton}
           onPress={() => router.back()}
         >
           <Text style={styles.backButtonText}>กลับ</Text>
@@ -83,11 +89,13 @@ export default function DetailScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Image
-        source={{ uri: data.image_url }}
-        style={styles.mainImage}
-        contentFit="cover"
-      />
+      <View style={styles.imageContainer}>
+        <Image
+          source={{ uri: data.image_url }}
+          style={styles.mainImage}
+          contentFit="cover"
+        />
+      </View>
 
       <View style={styles.contentContainer}>
         <Text style={styles.name}>{data.name}</Text>
@@ -107,33 +115,37 @@ export default function DetailScreen() {
           </View>
         </View>
 
-        {data.description && (
-          <View style={styles.descriptionCard}>
-            <Text style={styles.descriptionTitle}>รายละเอียด</Text>
-            <Text style={styles.descriptionText}>{data.description}</Text>
+        {data.latitude && data.longitude ? (
+          <View style={styles.mapSection}>
+            <Text style={styles.sectionTitle}>ตำแหน่งบนแผนที่</Text>
+            <MapView
+              style={{ width: "100%", height: 300 }}
+              initialRegion={{
+                latitude: Number(data.latitude),
+                longitude: Number(data.longitude),
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+            >
+              <Marker
+                coordinate={{
+                  latitude: Number(data.latitude),
+                  longitude: Number(data.longitude),
+                }}
+                title={data.name}
+                description={data.address}
+                onPress={handleOpenMapApp}
+              />
+            </MapView>
+          </View>
+        ) : (
+          <View style={styles.mapSection}>
+            <Text style={styles.sectionTitle}>ตำแหน่งบนแผนที่</Text>
+            <View style={styles.noMapContainer}>
+              <Text style={styles.noMapText}>ไม่มีข้อมูลพิกัด</Text>
+            </View>
           </View>
         )}
-
-        <View style={styles.mapSection}>
-          <Text style={styles.sectionTitle}>ตำแหน่งบนแผนที่</Text>
-          <TouchableOpacity
-            style={styles.mapContainer}
-            onPress={openGoogleMaps}
-          >
-            <Image
-              source={{
-                uri: `https://tile.openstreetmap.org/staticmap?center=${data.latitude},${data.longitude}&zoom=15&size=${Math.floor(width - 64)}x200&markers=${data.latitude},${data.longitude}`,
-              }}
-              style={styles.mapImage}
-              contentFit="cover"
-            />
-            <View style={styles.mapOverlay}>
-              <Text style={styles.mapOverlayText}>
-                📍 กดเพื่อเปิด Google Maps
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
 
         <View style={styles.buttonContainer}>
           {data.phone && (
@@ -141,9 +153,6 @@ export default function DetailScreen() {
               <Text style={styles.callButtonText}>📞 โทร</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={styles.mapButton} onPress={openGoogleMaps}>
-            <Text style={styles.mapButtonText}>📍 เปิดใน Google Maps</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -166,9 +175,21 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginBottom: theme.spacing.md,
   },
-  backButton: {
+  errorBackButton: {
     backgroundColor: theme.colors.primary,
     paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+  },
+  imageContainer: {
+    position: "relative",
+  },
+  backButton: {
+    position: "absolute",
+    top: 50,
+    left: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.full,
   },
@@ -211,23 +232,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.text,
   },
-  descriptionCard: {
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-  },
-  descriptionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.sm,
-  },
-  descriptionText: {
-    fontSize: 14,
-    color: theme.colors.text,
-    lineHeight: 22,
-  },
   mapSection: {
     marginBottom: theme.spacing.md,
   },
@@ -237,32 +241,20 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     marginBottom: theme.spacing.sm,
   },
-  mapContainer: {
-    borderRadius: theme.borderRadius.md,
-    overflow: "hidden",
+  noMapContainer: {
+    height: 300,
     backgroundColor: theme.colors.white,
-  },
-  mapImage: {
-    width: width - 64,
-    height: 200,
-  },
-  mapOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0, 180, 216, 0.8)",
-    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    justifyContent: "center",
     alignItems: "center",
   },
-  mapOverlayText: {
-    color: theme.colors.white,
-    fontSize: 14,
-    fontWeight: "600",
+  noMapText: {
+    fontSize: 16,
+    color: theme.colors.textLight,
   },
   buttonContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     marginBottom: theme.spacing.xl,
   },
   callButton: {
@@ -271,22 +263,8 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
     alignItems: "center",
-    marginRight: theme.spacing.sm,
   },
   callButtonText: {
-    color: theme.colors.white,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  mapButton: {
-    flex: 1,
-    backgroundColor: theme.colors.primary,
-    paddingVertical: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    alignItems: "center",
-    marginLeft: theme.spacing.sm,
-  },
-  mapButtonText: {
     color: theme.colors.white,
     fontSize: 16,
     fontWeight: "600",

@@ -1,19 +1,20 @@
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
-  View,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
   Text,
-  ActivityIndicator,
-} from 'react-native';
-import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'expo-router';
-import { Image } from 'expo-image';
-import { theme } from '../constants/theme';
-import { supabase, ProvinceData } from '../lib/supabase';
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { extractKeywords } from "../constants/keywords";
+import { theme } from "../constants/theme";
+import { ProvinceData, supabase } from "../lib/supabase";
 
 interface Message {
   id: string;
@@ -26,79 +27,14 @@ export default function HomeScreen() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
-      text: 'สวัสดีครับ ฟ้ามืดยินดีรับใช้ คุณต้องการรู้อะไรเกี่ยวกับจังหวัดประเทศไทยไหมครับ ฟ้ามืดยินดีตอบครับ',
+      id: "1",
+      text: "สวัสดีครับ ฟ้ามืดยินดีรับใช้ คุณต้องการรู้อะไรเกี่ยวกับจังหวัดประเทศไทยไหมครับ ฟ้ามืดยินดีตอบครับ",
       isBot: true,
     },
   ]);
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
-
-  const categoryKeywords: { [key: string]: string[] } = {
-    'สถานที่เที่ยว': ['สถานที่เที่ยว', 'ที่เที่ยว', 'เที่ยว', 'ที่เที่ยว', 'สถานที่ท่องเที่ยว', 'ท่องเที่ยว', 'สถานที่น่าเที่ยว'],
-    'ร้านอาหาร': ['ร้านอาหาร', 'อาหาร', 'ร้านกับข้าว', 'กิน', 'ทาน', 'ร้านข้าว', 'แนะนำร้านอาหาร'],
-    'งานประจำปี': ['งานประจำปี', 'งานเทศกาล', 'เทศกาล', 'งาน', 'ประเพณี', 'งานวัด'],
-    'ที่พัก': ['ที่พัก', 'โรงแรม', 'รีสอร์ท', 'ห้องพัก', 'โฮสเทล'],
-    'ของฝาก': ['ของฝาก', 'ของที่ระลึก', 'สินค้า', 'ของดี'],
-  };
-
-  const extractKeywords = (text: string): { category: string | null; province: string | null } => {
-    let category: string | null = null;
-    let province: string | null = null;
-
-    // Extract category
-    for (const [cat, keywords] of Object.entries(categoryKeywords)) {
-      for (const keyword of keywords) {
-        if (text.includes(keyword)) {
-          category = cat;
-          break;
-        }
-      }
-      if (category) break;
-    }
-
-    // Extract province (common Thai provinces)
-    const provinces = [
-      'สุราษฎร์ธานี', 'เชียงใหม่', 'กรุงเทพมหานคร', 'ภูเก็ต', 'ขอนแก่น', 'ชลบุรี',
-      'เชียงราย', 'นครราชสีมา', 'อุดรธานี', 'หาดใหญ่', 'สงขลา', 'ปัตตานี', 'นครศรีธรรมราช',
-      'สุโขทัย', 'พิษณุโลก', 'อยุธยา', 'กาญจนบุรี', 'ระยอง', 'ตราด', 'จันทบุรี',
-      'นครนายก', 'ปราจีนบุรี', 'สระแก้ว', 'สมุทรปราการ', 'สมุทรสาคร', 'นนทบุรี',
-      'ปทุมธานี', 'อ่างทอง', 'ลพบุรี', 'สิงห์บุรี', 'ชัยนาท', 'สุพรรณบุรี',
-      'เพชรบุรี', 'ประจวบคีรีขันธ์', 'ชุมพร', 'ระนอง', 'พังงา', 'กระบี่',
-      'ตรัง', 'พัทลุง', 'สตูล', 'ยะลา', 'นราธิวาส', 'บึงกาฬ', 'หนองคาย',
-      'เลย', 'หนองบัวลำภู', 'อุดรธานี', 'สกลนคร', 'นครพนม', 'มุกดาหาร',
-      'อำนาจเจริญ', 'อุบลราชธานี', 'ยโสธร', 'ศรีสะเกษ', 'สุรินทร์', 'บุรีรัมย์',
-      'มหาสารคาม', 'ร้อยเอ็ด', 'กาฬสินธุ์', 'นครสวรรค์', 'อุทัยธานี', 'ชัยภูมิ',
-      'พิจิตร', 'เพชรบูรณ์', 'ลพบุรี', 'สระบุรี', 'แพร่', 'น่าน', 'พะเยา',
-      'ลำปาง', 'ลำพูน', 'แม่ฮ่องสอน', 'ตาก', 'สุโขทัย', 'พิษณุโลก', 'กำแพงเพชร',
-    ];
-
-    for (const p of provinces) {
-      if (text.includes(p)) {
-        province = p;
-        break;
-      }
-    }
-
-    return { category, province };
-  };
-
-  const searchProvinceData = async (category: string, province: string): Promise<ProvinceData[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('provinces')
-        .select('*')
-        .ilike('category', `%${category}%`)
-        .ilike('province', `%${province}%`);
-
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      return [];
-    }
-  };
 
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
@@ -110,26 +46,42 @@ export default function HomeScreen() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInputText('');
+    setInputText("");
     setIsLoading(true);
 
     const { category, province } = extractKeywords(inputText);
 
     if (category && province) {
-      const results = await searchProvinceData(category, province);
+      try {
+        const { data, error } = await supabase
+          .from("suratthani")
+          .select("*")
+          .ilike("category", `%${category}%`)
+          .ilike("province", `%${province}%`);
 
-      if (results.length > 0) {
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const botMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            text: `ฟ้ามืดแนะนำ "${category}" ในจังหวัด${province} ครับ`,
+            isBot: true,
+            data: data,
+          };
+          setMessages((prev) => [...prev, botMessage]);
+        } else {
+          const botMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            text: `ขออภัยฟ้ามืด ไม่พบข้อมูล "${category}" ในจังหวัด${province} ครับ`,
+            isBot: true,
+          };
+          setMessages((prev) => [...prev, botMessage]);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
         const botMessage: Message = {
           id: (Date.now() + 1).toString(),
-          text: `พบ ${results.length} รายการสำหรับ "${category}" ในจังหวัด${province} ครับ`,
-          isBot: true,
-          data: results,
-        };
-        setMessages((prev) => [...prev, botMessage]);
-      } else {
-        const botMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          text: `ขออภัยครับ ไม่พบข้อมูล "${category}" ในจังหวัด${province} ครับ`,
+          text: "ขออภัยฟ้ามืด เกิดข้อผิดพลาดในการค้นหาข้อมูล กรุณาลองใหม่อีกครั้ง",
           isBot: true,
         };
         setMessages((prev) => [...prev, botMessage]);
@@ -148,7 +100,7 @@ export default function HomeScreen() {
 
   const handleItemClick = (item: ProvinceData) => {
     router.push({
-      pathname: '/detail',
+      pathname: "/detail",
       params: { id: item.id.toString() },
     });
   };
@@ -160,14 +112,10 @@ export default function HomeScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
       <View style={styles.header}>
-        <Image
-          source={require('../assets/images/logo.png')}
-          style={styles.headerLogo}
-          contentFit="contain"
-        />
         <Text style={styles.headerTitle}>ฟ้ามืด</Text>
       </View>
 
@@ -175,6 +123,10 @@ export default function HomeScreen() {
         ref={scrollViewRef}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
+        keyboardShouldPersistTaps="handled"
+        onContentSizeChange={() =>
+          scrollViewRef.current?.scrollToEnd({ animated: true })
+        }
       >
         {messages.map((message) => (
           <View key={message.id}>
@@ -225,9 +177,18 @@ export default function HomeScreen() {
           placeholderTextColor={theme.colors.textLight}
           multiline
           maxLength={500}
+          onFocus={() =>
+            setTimeout(
+              () => scrollViewRef.current?.scrollToEnd({ animated: true }),
+              100,
+            )
+          }
         />
         <TouchableOpacity
-          style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+          style={[
+            styles.sendButton,
+            !inputText.trim() && styles.sendButtonDisabled,
+          ]}
           onPress={handleSend}
           disabled={!inputText.trim() || isLoading}
         >
@@ -244,8 +205,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: theme.spacing.md,
     backgroundColor: theme.colors.primary,
     paddingTop: 60,
@@ -257,7 +218,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: theme.colors.white,
     marginLeft: theme.spacing.sm,
   },
@@ -269,19 +230,19 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.lg,
   },
   messageBubble: {
-    maxWidth: '80%',
+    maxWidth: "80%",
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.sm,
   },
   botBubble: {
     backgroundColor: theme.colors.white,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderBottomLeftRadius: 4,
   },
   userBubble: {
     backgroundColor: theme.colors.primary,
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
     borderBottomRightRadius: 4,
   },
   messageText: {
@@ -290,30 +251,30 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   resultsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
   resultCard: {
-    width: '48%',
-    margin: '1%',
+    width: "48%",
+    margin: "1%",
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.md,
-    overflow: 'hidden',
+    overflow: "hidden",
     elevation: 3,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   resultImage: {
-    width: '100%',
+    width: "100%",
     height: 120,
   },
   resultName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: theme.colors.text,
     padding: theme.spacing.sm,
     paddingBottom: 2,
@@ -325,12 +286,12 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.sm,
   },
   inputContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: theme.spacing.md,
     backgroundColor: theme.colors.white,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   input: {
     flex: 1,
@@ -349,7 +310,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.full,
     minWidth: 60,
-    alignItems: 'center',
+    alignItems: "center",
   },
   sendButtonDisabled: {
     backgroundColor: theme.colors.primaryLight,
@@ -357,6 +318,6 @@ const styles = StyleSheet.create({
   sendButtonText: {
     color: theme.colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

@@ -12,8 +12,7 @@ export interface ProvinceData {
   province: string;
   address: string;
   image_url: string;
-  latitude: number;
-  longitude: number;
-  phone: string;
-  description?: string;
+  latitude?: number;
+  longitude?: number;
+  phone?: string;
 }
